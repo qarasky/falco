@@ -1,10 +1,39 @@
 # Falco
 
-**Turn one SSH server into a portable, double-click app.**
+**Give your AI agent a server command. Hand your colleague a ready-to-run SSH launcher.**
 
-The Falco Editor creates a standalone launcher configured for one server.
-Launchers run remote commands, open an interactive shell, and transfer files
-without a separate SSH installation or configuration file.
+Falco packages one server's SSH connection into a portable executable for
+Windows, macOS or Linux, plus a `how-to-use.md` guide for humans and agents.
+No separate SSH installation or config file required. Each recipient privately
+sets up their credentials once in a terminal; agents then run commands and
+transfer files without asking for passwords in chat.
+
+[Download the Editor](https://github.com/qarasky/falco/releases) ·
+[Quick start](#create-a-launcher) · [Security & threat model](#security--threat-model)
+
+![Workflow illustration: configure a server, share a launcher and guide, complete private credential setup, then run SSH commands and transfers](docs/images/falco-workflow.svg)
+
+### Why not just `ssh`?
+
+If everyone already has SSH configured, keep using it. Falco is for handing off
+**a configured tool rather than a setup checklist**:
+
+- **For agents:** one executable and a generated guide, JSON diagnostics, host-key
+  checks, and credentials retrieved from the OS store instead of supplied in chat.
+- **For colleagues:** share a launcher and guide; they complete private terminal
+  setup once, then open a shell or run commands with the same tool.
+- **For mixed-platform teams:** one editor can produce launchers for all bundled
+  platforms, offline, without installing a compiler on the recipient's machine.
+
+```sh
+# After the human completes first-run credential setup:
+./server-client-X "docker ps"
+./server-client-X --upload ./app.zip /srv/app.zip
+```
+
+Falco is not an access-control boundary or a restricted agent sandbox. Commands
+have the configured SSH account's permissions. First-run setup and OS security
+prompts mean this is not a zero-click onboarding promise.
 
 ## Create a launcher
 
@@ -87,6 +116,39 @@ This updates the stored pin; it does not disable future checks.
 terminal setup again. `--reset-password` remains an alias. Credential reset does
 not erase host trust. Keystore failures never fall back to insecure storage.
 
+## Security & threat model
+
+**Designed to keep passwords and passphrases out of shared launchers, command
+arguments and agent chat—not to hide them from a compromised machine.**
+
+- **What you distribute:** the executable includes the host, port, username and,
+  in key mode, the encrypted OpenSSH private key. These bytes are extractable;
+  encryption is not a reason to publish a launcher containing a private key.
+  Anyone with a copy can attempt offline passphrase guessing. Use a strong,
+  unique passphrase and a dedicated, least-privilege key, not a personal master key.
+- **Sharing is sharing an identity:** recipients of a key-mode launcher use the
+  same embedded SSH key. Separate local credential stores do not create separate
+  server identities. Prefer individual accounts/keys for attribution and
+  revocation, and distribute key-mode launchers only to intended key holders.
+  If a launcher or passphrase leaks, revoke the key on the server; deleting a
+  local credential does not revoke access or erase distributed copies.
+- **Local trust:** secrets are stored in the native OS credential store and used
+  in process memory. Malware, an unrestricted same-account agent, administrator
+  access or external memory/crash dumps are outside this protection. After setup,
+  an agent that can run the launcher can exercise the SSH account's permissions.
+- **Server trust:** host keys use trust on first use, not independently verified
+  identity on the first connection. Use a trusted network and verify the server
+  fingerprint independently before relying on the first pin. Changed keys fail
+  closed; approve replacements only after verification.
+- **Executable trust and macOS:** current distribution is unsigned; do not assume
+  code signing or notarization. Only run editors and launchers from a source you
+  trust, or build from reviewed source. macOS may block downloaded files, and
+  copied Unix launchers may need `chmod +x`. Remove quarantine only after checking
+  provenance—it bypasses an OS safeguard, not a Falco security check.
+
+For sensitive deployments, enforce permissions and command restrictions on the
+server. Falco does not add per-command approval, isolation, or automatic rollback.
+
 ## Errors for AI agents
 
 Falco's own errors are one JSON object per line on stderr:
@@ -110,7 +172,7 @@ use a Falco JSON diagnostic to distinguish a launcher failure from remote stderr
 
 ## Build and develop
 
-Download the Editor from [Releases](https://github.com/Media-Boost-Group/falco/releases),
+Download the Editor from [Releases](https://github.com/qarasky/falco/releases),
 or build from source with Python 3.12+ (including Tk) and Rust 1.85+:
 
 ```sh

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="360" viewBox="0 0 1080 360" role="img" aria-labelledby="title desc">
+  <title id="title">One server. One launcher.</title>
+  <desc id="desc">Workflow illustration, not an application screenshot. Configure a server in the Falco Editor, share a portable launcher and guide, complete private terminal credential setup, then run commands and transfer files.</desc>
+  <rect width="1080" height="360" rx="16" fill="#f4f6fa"/>
+  <g font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+    <text x="36" y="43" fill="#315ae8" font-size="12" font-weight="700" letter-spacing="2">FALCO / WORKFLOW</text>
+    <text x="36" y="88" fill="#192a43" font-size="34" font-weight="700">One server. One launcher.</text>
+    <text x="36" y="118" fill="#64748b" font-size="17">Share the connection setup. Keep credentials out of chat.</text>
+    <g fill="#fff" stroke="#dbe2ed">
+      <rect x="36" y="150" width="234" height="166" rx="10"/>
+      <rect x="294" y="150" width="234" height="166" rx="10"/>
+      <rect x="552" y="150" width="234" height="166" rx="10"/>
+      <rect x="810" y="150" width="234" height="166" rx="10"/>
+    </g>
+    <g fill="#315ae8" font-size="12" font-weight="700" letter-spacing="1">
+      <text x="54" y="178">01 / CONFIGURE</text>
+      <text x="312" y="178">02 / HAND OFF</text>
+      <text x="570" y="178">03 / HUMAN SETUP</text>
+      <text x="828" y="178">04 / USE</text>
+    </g>
+    <g fill="#192a43" font-size="20" font-weight="650">
+      <text x="54" y="211">Falco Editor</text>
+      <text x="312" y="211">Launcher + guide</text>
+      <text x="570" y="211">Private terminal prompt</text>
+      <text x="828" y="211">Humans &amp; agents</text>
+    </g>
+    <g fill="#64748b" font-size="14">
+      <text x="54" y="240">Host, account, authentication</text>
+      <text x="54" y="264">Optional VPN reminder</text>
+      <text x="54" y="288">Build offline from bundled stubs</text>
+      <text x="312" y="240">Windows / macOS / Linux</text>
+      <text x="312" y="264">Share with intended recipients</text>
+      <text x="312" y="288">No embedded password</text>
+      <text x="570" y="240">Each recipient sets up once</text>
+      <text x="570" y="264">Password or key passphrase</text>
+      <text x="570" y="288">Saved in the OS credential store</text>
+      <text x="828" y="240">Commands, shell &amp; SFTP</text>
+      <text x="828" y="264">Structured launcher errors</text>
+      <text x="828" y="288">SSH account permissions apply</text>
+    </g>
+  </g>
+</svg>
