@@ -1,6 +1,8 @@
 # Falco
 
-**Give your AI agent a server command. Hand your colleague a ready-to-run SSH launcher.**
+**One launcher per server. Safe to commit in password mode. Works for you and your AI agent.**
+
+<!-- Add the real demo GIF here when ready, directly below the tagline. -->
 
 Falco packages one server's SSH connection into a portable executable for
 Windows, macOS or Linux, plus a `how-to-use.md` guide for humans and agents.
@@ -8,22 +10,31 @@ No separate SSH installation or config file required. Each recipient privately
 sets up their credentials once in a terminal; agents then run commands and
 transfer files without asking for passwords in chat.
 
+Or just double-click it to open a shell on the server, where your OS supports
+terminal launching, after first-run setup.
+
 [Download the Editor](https://github.com/qarasky/falco/releases) ·
-[Quick start](#create-a-launcher) · [Security & threat model](#security--threat-model)
+[Quick start](#quickstart) · [What's safe to commit](#whats-safe-to-commit)
 
 ![Workflow illustration: configure a server, share a launcher and guide, complete private credential setup, then run SSH commands and transfers](docs/images/falco-workflow.svg)
 
-### Why not just `ssh`?
+## Why
 
-If everyone already has SSH configured, keep using it. Falco is for handing off
-**a configured tool rather than a setup checklist**:
+You manage many servers and want one ready-to-run tool for each.
+You're tired of copying your AI agent's commands into terminals and pasting results back.
+You want a free tool with no SSH client or MCP service to install and configure.
+Create a launcher, save your password once, and let you or your agent use it.
 
-- **For agents:** one executable and a generated guide, JSON diagnostics, host-key
-  checks, and credentials retrieved from the OS store instead of supplied in chat.
-- **For colleagues:** share a launcher and guide; they complete private terminal
-  setup once, then open a shell or run commands with the same tool.
-- **For mixed-platform teams:** one editor can produce launchers for all bundled
-  platforms, offline, without installing a compiler on the recipient's machine.
+## Quickstart
+
+1. **Download the [Editor](https://github.com/qarasky/falco/releases)** for your OS.
+2. **Create a launcher:** enter the host, port and username, leave **Password**
+   selected, choose an output folder, and click **Build launcher**.
+3. **Run the launcher once in a terminal** and enter your password privately.
+   After successful authentication, it is saved in your OS credential store.
+
+Then give your agent the launcher and its generated `how-to-use.md`, or share them
+with a colleague who completes their own first-run setup.
 
 ```sh
 # After the human completes first-run credential setup:
@@ -31,19 +42,38 @@ If everyone already has SSH configured, keep using it. Falco is for handing off
 ./server-client-X --upload ./app.zip /srv/app.zip
 ```
 
-Falco is not an access-control boundary or a restricted agent sandbox. Commands
-have the configured SSH account's permissions. First-run setup and OS security
-prompts mean this is not a zero-click onboarding promise.
+## Why not just SSH?
+
+Plain `ssh` is great if you already have it configured. Falco came from managing
+many client servers: instead of copying AI-generated commands into terminals,
+keep a password-mode launcher in each project's repo and let the agent run it
+directly. The connection travels with the project; your password stays local.
+
+## Why not MCP?
+
+Falco is a single executable, with no MCP server process or agent-specific setup.
+It works with any agent that can run a shell command. Configure the connection
+once in the Editor and complete private first-run credential setup; there's no
+separate SSH client or integration to install.
+
+## What's safe to commit
+
+**A password-mode launcher is safe to commit from a credential perspective:**
+its connection settings contain only the host, port and username, not a password.
+It also contains non-secret metadata such as its name and VPN reminder.
+**A public repo reveals your server's IP or hostname, port and username**, so
+commit the launcher and guide only if those details are okay to disclose.
+
+Passwords live in Windows Credential Manager, macOS Keychain or Linux Secret
+Service after setup—not in the repository or executable. Falco never accepts them
+through argv or environment variables. Enter them only in the private terminal
+prompt, never in agent chat. **This commit-safety claim does not apply to optional
+encrypted-key launchers**, which embed a private key.
 
 ## Create a launcher
 
-Enter the host, port and SSH username, then choose authentication:
-
-- **Password:** the launcher contains no password.
-- **Encrypted key:** select a passphrase-protected **OpenSSH private key**. The
-  encrypted key is embedded in the launcher; its passphrase is not. Unencrypted
-  keys, PEM/PKCS#8 keys and signed SSH user certificates are not supported.
-  Use `ssh-keygen` to save a compatible encrypted OpenSSH key if needed.
+Enter the host, port and SSH username. **Password is the default**; no password
+is entered in the Editor or embedded in the launcher.
 
 Check **Requires Tailscale / WireGuard / VPN** when the server is on a private
 network. Falco adds a reminder to the generated agent instructions and connection
@@ -118,57 +148,44 @@ not erase host trust. Keystore failures never fall back to insecure storage.
 
 ## Security & threat model
 
-**Designed to keep passwords and passphrases out of shared launchers, command
-arguments and agent chat—not to hide them from a compromised machine.**
+- **Protects against accidental secret sharing:** passwords/passphrases are not
+  embedded, accepted via argv/env, or written to temporary files. The OS store
+  is used without an insecure storage fallback.
+- **Rejects changed server identities:** pinned host keys are checked before
+  authentication. **First connection is TOFU**, not independent verification;
+  use a trusted network and verify the fingerprint independently.
+- **Does not protect a compromised machine:** secrets exist in process memory.
+  Malware, administrator access, unrestricted same-account agents and external
+  memory/crash dumps are outside this protection.
+- **Does not sandbox agents:** anyone able to run a configured launcher after
+  setup can exercise the SSH account's permissions. Enforce least privilege and
+  command restrictions on the server; Falco adds no per-command approval or rollback.
+- **Does not establish executable provenance:** distribution is unsigned. Only
+  run trusted editors/launchers or build from reviewed source. On macOS, remove
+  quarantine only after checking provenance; this bypasses an OS safeguard.
 
-- **What you distribute:** the executable includes the host, port, username and,
-  in key mode, the encrypted OpenSSH private key. These bytes are extractable;
-  encryption is not a reason to publish a launcher containing a private key.
-  Anyone with a copy can attempt offline passphrase guessing. Use a strong,
-  unique passphrase and a dedicated, least-privilege key, not a personal master key.
-- **Sharing is sharing an identity:** recipients of a key-mode launcher use the
-  same embedded SSH key. Separate local credential stores do not create separate
-  server identities. Prefer individual accounts/keys for attribution and
-  revocation, and distribute key-mode launchers only to intended key holders.
-  If a launcher or passphrase leaks, revoke the key on the server; deleting a
-  local credential does not revoke access or erase distributed copies.
-- **Local trust:** secrets are stored in the native OS credential store and used
-  in process memory. Malware, an unrestricted same-account agent, administrator
-  access or external memory/crash dumps are outside this protection. After setup,
-  an agent that can run the launcher can exercise the SSH account's permissions.
-- **Server trust:** host keys use trust on first use, not independently verified
-  identity on the first connection. Use a trusted network and verify the server
-  fingerprint independently before relying on the first pin. Changed keys fail
-  closed; approve replacements only after verification.
-- **Executable trust and macOS:** current distribution is unsigned; do not assume
-  code signing or notarization. Only run editors and launchers from a source you
-  trust, or build from reviewed source. macOS may block downloaded files, and
-  copied Unix launchers may need `chmod +x`. Remove quarantine only after checking
-  provenance—it bypasses an OS safeguard, not a Falco security check.
+## Optional: encrypted-key authentication
 
-For sensitive deployments, enforce permissions and command restrictions on the
-server. Falco does not add per-command approval, isolation, or automatic rollback.
+Select **Encrypted key** instead of Password and choose a passphrase-protected
+**OpenSSH private key**. Unencrypted keys, PEM/PKCS#8 keys and signed SSH user
+certificates are not supported.
+
+**Warning: the encrypted private key is embedded in the launcher and can be
+extracted. If you put it in a public repository, anyone can attempt offline
+passphrase guessing. Use a strong, unique passphrase—but prefer keeping key-mode
+launchers private, even with a strong passphrase.** Use a dedicated least-privilege
+key, not your personal master key. The passphrase is saved locally after successful
+authentication, never embedded.
+
+Recipients of the same key-mode launcher share a server-side identity; separate
+local credential stores do not change that. Prefer individual accounts/keys for
+attribution and revocation. If a key or passphrase leaks, revoke the key on the
+server: resetting a local credential cannot revoke access or erase shared copies.
 
 ## Errors for AI agents
 
-Falco's own errors are one JSON object per line on stderr:
-
-```json
-{"error":"CONNECTION_TIMEOUT","message":"Timed out connecting to the configured SSH server.","action":"Check the host/IP, SSH port, server availability and required VPN.","target":"deploy@100.64.0.12:22"}
-```
-
-Codes distinguish DNS lookup failure, refused/unreachable connections, connection
-and SSH-handshake/authentication timeouts, rejected credentials, key decryption,
-unavailable credential stores, host-key changes, and remote-operation failures.
-Messages explain known facts and give a next action. A timeout does not establish
-that a password is wrong or that the user is “not logged in.” When VPN is marked
-required, ask the user whether Tailscale/WireGuard/VPN is enabled before changing
-addresses or retrying. Inspect possible partial effects before retrying remote
-commands or transfers.
-
-Launcher error exit groups are `2` (arguments/config), `3` (local credentials),
-and `4` (SSH/remote operations). Remote commands return their own exit codes, so
-use a Falco JSON diagnostic to distinguish a launcher failure from remote stderr.
+Launcher failures produce JSON diagnostics on stderr with suggested next actions.
+See [agent diagnostics and exit codes](docs/agent-errors.md) for details.
 
 ## Build and develop
 
