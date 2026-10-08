@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Falco — folded-wing falcon</title>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#252927"/>
+  <path d="M248 290 L610 384 L746 290 L820 290 L876 368 L772 354 L694 462 L562 666 L356 760 L438 602 Z" fill="#F3F1E9"/>
+  <path d="M248 290 L558 492 L438 602 Z" fill="#A5B4A4"/>
+  <path d="M438 602 L562 666 L356 760 Z" fill="#A5B4A4"/>
+  <path d="M765 310 L786 327 L753 327 Z" fill="#252927"/>
+</svg>

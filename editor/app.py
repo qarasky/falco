@@ -10,6 +10,7 @@ from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from tkinter.font import nametofont
 from tkinter.scrolledtext import ScrolledText
 
 from editor.builder import TARGETS, _current_os_key, discover_stubs, validate_output_name
@@ -18,18 +19,17 @@ from shared.config import DEFAULT_SSH_PORT, LauncherConfig
 from shared.errors import FalcoError
 from shared.ssh_keys import MAX_KEY_BYTES
 
-BG = "#F4F6FA"
-INK = "#192A43"
-MUTED = "#64748B"
-BLUE = "#315AE8"
+BG = "#F5F5F4"
+INK = "#242424"
+MUTED = "#686868"
 
 
 class FalcoEditor(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Falco · SSH launcher builder")
-        self.geometry("860x820")
-        self.minsize(800, 790)
+        self.title("Falco Editor")
+        self.geometry("660x660")
+        self.minsize(620, 660)
         self.configure(background=BG)
         self._closing = False
         self._building = False
@@ -39,35 +39,22 @@ class FalcoEditor(tk.Tk):
         self._stubs = discover_stubs()
         self._current_os = _current_os_key()
         self._configure_styles()
+        self._icon = tk.PhotoImage(file=str(Path(__file__).parent / "assets" / "falco-64.png"))
+        self.iconphoto(True, self._icon)
         self._build_form()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._poll_id = self.after(80, self._poll_events)
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self)
-        style.theme_use("clam")
-        font = "Helvetica Neue" if sys.platform == "darwin" else "Segoe UI" if sys.platform == "win32" else "DejaVu Sans"
-        self._font = font
-        self.option_add("*Font", (font, 11))
-        style.configure("TFrame", background=BG)
-        style.configure("TLabel", background=BG, foreground=INK, font=(font, 11))
-        style.configure("Muted.TLabel", foreground=MUTED, font=(font, 10))
-        style.configure("Brand.TLabel", font=(font, 29, "bold"), foreground=INK)
-        style.configure("Eyebrow.TLabel", font=(font, 9, "bold"), foreground=BLUE)
-        style.configure("Card.TLabelframe", background="white", bordercolor="#DBE2ED", relief="solid", borderwidth=1)
-        style.configure("Card.TLabelframe.Label", background="white", foreground=INK, font=(font, 12, "bold"))
-        style.configure("Card.TFrame", background="white")
-        style.configure("Card.TLabel", background="white", foreground=INK)
-        style.configure("Hint.TLabel", background="white", foreground=MUTED, font=(font, 10))
-        style.configure("TEntry", fieldbackground="white", foreground=INK, padding=7, bordercolor="#CCD5E2", lightcolor="#CCD5E2", darkcolor="#CCD5E2")
-        style.map("TEntry", bordercolor=[("focus", BLUE)])
-        style.configure("TButton", padding=(12, 7), foreground=INK, background="#E9EDF5", borderwidth=0, font=(font, 10))
-        style.map("TButton", background=[("active", "#DCE4F3")])
-        style.configure("Primary.TButton", padding=(22, 12), background=BLUE, foreground="white", font=(font, 11, "bold"))
-        style.map("Primary.TButton", background=[("disabled", "#ADBCEB"), ("active", "#2548CA")], foreground=[("disabled", "white")])
-        style.configure("TRadiobutton", background="white", foreground=INK, padding=(0, 4))
-        style.configure("TCheckbutton", background="white", foreground=INK, padding=(0, 4))
-        style.configure("Horizontal.TProgressbar", background=BLUE, troughcolor="#E1E7F2", borderwidth=0)
+        # Keep Aqua/Windows controls native rather than painting a web-style UI.
+        if sys.platform == "win32" and "vista" in style.theme_names():
+            style.theme_use("vista")
+        self.configure(background=style.lookup("TFrame", "background") or BG)
+        style.configure("Muted.TLabel", foreground=MUTED)
+        self._section_font = nametofont("TkDefaultFont").copy()
+        self._section_font.configure(weight="bold")
+        style.configure("Section.TLabel", font=self._section_font)
 
     def _entry(self, parent: ttk.Widget, variable: tk.StringVar, **kwargs) -> ttk.Entry:
         widget = ttk.Entry(parent, textvariable=variable, **kwargs)
@@ -79,21 +66,23 @@ class FalcoEditor(tk.Tk):
         self._controls.append(widget)
         return widget
 
-    def _card(self, parent: ttk.Widget, title: str) -> ttk.LabelFrame:
-        return ttk.LabelFrame(parent, text=title, style="Card.TLabelframe", padding=18)
+    def _section(self, parent: ttk.Widget, title: str, row: int) -> ttk.Frame:
+        section = ttk.Frame(parent)
+        section.grid(row=row, column=0, sticky="ew", pady=(0, 18))
+        section.columnconfigure(1, weight=1)
+        ttk.Label(section, text=title, style="Section.TLabel", width=16).grid(row=0, column=0, sticky="w", pady=(0, 10))
+        ttk.Separator(section).grid(row=0, column=1, sticky="ew", padx=(16, 0), pady=(0, 10))
+        return section
+
+    def _field(self, parent: ttk.Widget, label: str, row: int) -> None:
+        ttk.Label(parent, text=label, width=16).grid(row=row, column=0, sticky="w", padx=(0, 16), pady=5)
 
     def _build_form(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        body = ttk.Frame(self, padding=(28, 22))
+        body = ttk.Frame(self, padding=24)
         body.grid(sticky="nsew")
         body.columnconfigure(0, weight=1)
-        body.rowconfigure(5, weight=1)
-        header = ttk.Frame(body)
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        ttk.Label(header, text="FALCO", style="Eyebrow.TLabel").pack(anchor="w")
-        ttk.Label(header, text="One server. One launcher.", style="Brand.TLabel").pack(anchor="w", pady=(3, 4))
-        ttk.Label(header, text="Create a portable SSH app for your team and AI agents.", style="Muted.TLabel").pack(anchor="w")
 
         self.var_name = tk.StringVar(value="server-client-X")
         self.var_host = tk.StringVar()
@@ -107,92 +96,87 @@ class FalcoEditor(tk.Tk):
         self.var_vpn = tk.BooleanVar(value=False)
         self.var_all_platforms = tk.BooleanVar(value=bool(self._stubs and self._current_os not in self._stubs))
 
-        cards = ttk.Frame(body)
-        cards.grid(row=1, column=0, sticky="ew")
-        cards.columnconfigure(0, weight=1, uniform="cards")
-        cards.columnconfigure(1, weight=1, uniform="cards")
-        connection = self._card(cards, "  Connection  ")
-        connection.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        connection.columnconfigure(0, weight=1)
-        address = ttk.Frame(connection, style="Card.TFrame")
-        address.grid(row=0, column=0, sticky="ew")
+        connection = self._section(body, "Connection", 0)
+        self._field(connection, "Host", 1)
+        address = ttk.Frame(connection)
+        address.grid(row=1, column=1, sticky="ew", pady=5)
         address.columnconfigure(0, weight=1)
-        ttk.Label(address, text="Host / IP address", style="Card.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 5))
-        ttk.Label(address, text="Port", style="Card.TLabel").grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 5))
         self.host_entry = self._entry(address, self.var_host)
-        self.host_entry.grid(row=1, column=0, sticky="ew")
-        self._entry(address, self.var_port, width=6).grid(row=1, column=1, padx=(10, 0))
-        ttk.Label(connection, text="SSH username", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(14, 5))
-        self._entry(connection, self.var_user).grid(row=2, column=0, sticky="ew")
-        vpn = ttk.Checkbutton(connection, text="Requires Tailscale / WireGuard / VPN", variable=self.var_vpn)
-        vpn.grid(row=3, column=0, sticky="w", pady=(13, 0))
+        self.host_entry.grid(row=0, column=0, sticky="ew")
+        ttk.Label(address, text="Port").grid(row=0, column=1, padx=(12, 8))
+        self._entry(address, self.var_port, width=6).grid(row=0, column=2)
+        self._field(connection, "Username", 2)
+        self._entry(connection, self.var_user).grid(row=2, column=1, sticky="ew", pady=5)
+        vpn = ttk.Checkbutton(connection, text="Requires VPN", variable=self.var_vpn)
+        vpn.grid(row=3, column=1, sticky="w", pady=5)
         self._controls.append(vpn)
-        ttk.Label(connection, text="Adds a network reminder for your AI agents.", style="Hint.TLabel").grid(row=4, column=0, sticky="w", pady=(2, 0))
 
-        auth = self._card(cards, "  Authentication  ")
-        auth.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-        auth.columnconfigure(0, weight=1)
-        options = ttk.Frame(auth, style="Card.TFrame")
-        options.grid(row=0, column=0, sticky="ew")
+        auth = self._section(body, "Authentication", 1)
+        self._field(auth, "Method", 1)
+        options = ttk.Frame(auth)
+        options.grid(row=1, column=1, sticky="ew", pady=5)
         for column, (label, value) in enumerate((("Password", "password"), ("Encrypted key", "private_key"))):
             radio = ttk.Radiobutton(options, text=label, variable=self.var_auth, value=value, command=self._auth_changed)
             radio.grid(row=0, column=column, padx=(0, 15), sticky="w")
             self._controls.append(radio)
-        ttk.Label(auth, text="OpenSSH private key", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(12, 5))
-        key_row = ttk.Frame(auth, style="Card.TFrame")
-        key_row.grid(row=2, column=0, sticky="ew")
+        self.key_label = ttk.Label(auth, text="Private key", width=16)
+        self.key_label.grid(row=2, column=0, sticky="w", padx=(0, 16), pady=5)
+        self.key_row = key_row = ttk.Frame(auth)
+        key_row.grid(row=2, column=1, sticky="ew", pady=5)
         key_row.columnconfigure(0, weight=1)
         self.key_entry = self._entry(key_row, self.var_key, width=15)
         self.key_entry.grid(row=0, column=0, sticky="ew")
-        self.key_button = self._button(key_row, text="Choose…", command=self._pick_key)
+        self.key_button = self._button(key_row, text="Browse…", command=self._pick_key)
         self.key_button.grid(row=0, column=1, padx=(7, 0))
         self.auth_hint = tk.StringVar()
-        ttk.Label(auth, textvariable=self.auth_hint, style="Hint.TLabel", wraplength=320, justify="left").grid(row=3, column=0, sticky="w", pady=(13, 0))
+        ttk.Label(auth, textvariable=self.auth_hint, style="Muted.TLabel", wraplength=420, justify="left").grid(row=3, column=1, sticky="w", pady=(5, 0))
 
-        output = self._card(body, "  Output  ")
-        output.grid(row=2, column=0, sticky="ew", pady=(18, 0))
-        output.columnconfigure(0, weight=1)
-        output.columnconfigure(1, weight=1)
-        ttk.Label(output, text="Launcher name", style="Card.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 5))
-        ttk.Label(output, text="Output filename", style="Card.TLabel").grid(row=0, column=1, sticky="w", padx=(16, 0), pady=(0, 5))
-        self._entry(output, self.var_name).grid(row=1, column=0, sticky="ew")
-        self._entry(output, self.var_output).grid(row=1, column=1, sticky="ew", padx=(16, 0))
-        platforms = ttk.Frame(output, style="Card.TFrame")
-        platforms.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 3))
+        output = self._section(body, "Output", 2)
+        self._field(output, "Launcher name", 1)
+        self._entry(output, self.var_name).grid(row=1, column=1, sticky="ew", pady=5)
+        self._field(output, "Filename", 2)
+        self._entry(output, self.var_output).grid(row=2, column=1, sticky="ew", pady=5)
+        self._field(output, "Platforms", 3)
+        platforms = ttk.Frame(output)
+        platforms.grid(row=3, column=1, sticky="ew", pady=5)
         label = {"macos": "macOS", "windows": "Windows", "linux": "Linux"}[self._current_os]
-        self.current_radio = ttk.Radiobutton(platforms, text=f"This computer ({label})", variable=self.var_all_platforms, value=False)
+        self.current_radio = ttk.Radiobutton(platforms, text=label, variable=self.var_all_platforms, value=False)
         self.current_radio.grid(row=0, column=0, sticky="w")
-        self.all_radio = ttk.Radiobutton(platforms, text="All available platforms", variable=self.var_all_platforms, value=True)
+        self.all_radio = ttk.Radiobutton(platforms, text="All available", variable=self.var_all_platforms, value=True)
         self.all_radio.grid(row=0, column=1, padx=(20, 0), sticky="w")
         self._controls.extend((self.current_radio, self.all_radio))
         available = ", ".join({"macos": "macOS", "windows": "Windows", "linux": "Linux"}[t.key] for t in TARGETS if t.key in self._stubs)
-        ttk.Label(output, text=f"Available: {available}" if available else "No launcher files bundled. Build the Rust launcher or use a packaged editor.", style="Hint.TLabel").grid(row=3, column=0, columnspan=2, sticky="w")
-        folder = ttk.Frame(output, style="Card.TFrame")
-        folder.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(13, 0))
+        ttk.Label(output, text=f"Available: {available}" if available else "No launcher files found. Build the Rust launcher first.", style="Muted.TLabel", wraplength=420).grid(row=4, column=1, sticky="w", pady=(0, 5))
+        self._field(output, "Folder", 5)
+        folder = ttk.Frame(output)
+        folder.grid(row=5, column=1, sticky="ew", pady=5)
         folder.columnconfigure(0, weight=1)
         self._entry(folder, self.var_directory).grid(row=0, column=0, sticky="ew")
-        self._button(folder, text="Output folder…", command=self._pick_directory).grid(row=0, column=1, padx=(8, 0))
+        self._button(folder, text="Browse…", command=self._pick_directory).grid(row=0, column=1, padx=(8, 0))
 
         actions = ttk.Frame(body)
-        actions.grid(row=3, column=0, sticky="ew", pady=(18, 10))
+        ttk.Separator(body).grid(row=3, column=0, sticky="ew")
+        actions.grid(row=4, column=0, sticky="ew", pady=(16, 12))
         actions.columnconfigure(0, weight=1)
-        ttk.Label(actions, text="Password and passphrase stay in your OS keychain.\nNo secrets are entered in the editor.", style="Muted.TLabel", justify="left").grid(row=0, column=0, sticky="w")
-        self.build_button = ttk.Button(actions, text="Build launcher", style="Primary.TButton", command=self._on_build)
+        self.details_button = ttk.Button(actions, text="Show build details", command=self._toggle_details)
+        self.details_button.grid(row=0, column=0, sticky="w")
+        self.build_button = ttk.Button(actions, text="Build launcher", command=self._on_build)
         self.build_button.grid(row=0, column=1, sticky="e")
         activity = ttk.Frame(body)
-        activity.grid(row=4, column=0, sticky="ew")
+        activity.grid(row=5, column=0, sticky="ew")
         activity.columnconfigure(0, weight=1)
-        self.status = tk.StringVar(value="Ready to build.")
-        self.status_label = ttk.Label(activity, textvariable=self.status, wraplength=610)
+        self.status = tk.StringVar(value="Ready")
+        self.status_label = ttk.Label(activity, textvariable=self.status, wraplength=380, style="Muted.TLabel")
         self.status_label.grid(row=0, column=0, sticky="w", pady=(0, 7))
         self.open_button = ttk.Button(activity, text="Open output folder", command=self._open_output, state="disabled")
         self.open_button.grid(row=0, column=1, sticky="e", padx=(12, 0), pady=(0, 7))
         self.progress = ttk.Progressbar(activity, mode="indeterminate")
-        self.progress.grid(row=1, column=0, columnspan=2, sticky="ew")
         self.log = ScrolledText(body, height=5, wrap="word", background="white", foreground=MUTED,
                                 font=("Menlo" if sys.platform == "darwin" else "Consolas", 10),
                                 relief="flat", borderwidth=0, padx=12, pady=10, state="disabled")
-        self.log.grid(row=5, column=0, sticky="nsew", pady=(12, 0))
+        self.log.grid(row=6, column=0, sticky="nsew", pady=(12, 0))
+        self.log.grid_remove()
+        self._details_visible = False
         self.log.tag_configure("error", foreground="#B42318")
         self.log.tag_configure("success", foreground="#16724C")
         self.var_name.trace_add("write", self._name_changed)
@@ -200,6 +184,17 @@ class FalcoEditor(tk.Tk):
         self._auth_changed()
         self._update_platforms()
         self.host_entry.focus_set()
+
+    def _toggle_details(self) -> None:
+        self._details_visible = not self._details_visible
+        self.details_button.configure(text="Hide build details" if self._details_visible else "Show build details")
+        if self._details_visible:
+            self.log.grid()
+            self.update_idletasks()
+            if self.winfo_height() < self.winfo_reqheight():
+                self.geometry(f"{self.winfo_width()}x{self.winfo_reqheight()}")
+        else:
+            self.log.grid_remove()
 
     def _name_changed(self, *_args) -> None:
         slug = re.sub(r"[^A-Za-z0-9._-]+", "-", self.var_name.get().strip()).strip(".-") or "server-client"
@@ -210,9 +205,14 @@ class FalcoEditor(tk.Tk):
 
     def _auth_changed(self) -> None:
         is_key = self.var_auth.get() == "private_key"
+        for widget in (self.key_label, self.key_row):
+            if is_key:
+                widget.grid()
+            else:
+                widget.grid_remove()
         for control in (self.key_entry, self.key_button):
             control.state(["!disabled" if is_key and not self._building else "disabled"])
-        self.auth_hint.set("Encrypted key travels with the launcher. Its passphrase is entered privately on first use." if is_key else "Password is entered privately on first use, then saved in the OS credential store.")
+        self.auth_hint.set("The encrypted key is embedded in the launcher. Keep it private." if is_key else "Password is entered on first use, not in this editor.")
 
     def _update_platforms(self) -> None:
         if not self._building:
@@ -290,10 +290,12 @@ class FalcoEditor(tk.Tk):
         for control in [*self._controls, self.build_button]:
             control.state(["disabled" if building else "!disabled"])
         if building:
+            self.progress.grid(row=1, column=0, columnspan=2, sticky="ew")
             self.progress.start(12)
             self.open_button.state(["disabled"])
         else:
             self.progress.stop()
+            self.progress.grid_remove()
             self._auth_changed()
             self._update_platforms()
 
@@ -314,6 +316,8 @@ class FalcoEditor(tk.Tk):
                     self._append_log(event.message)
                 elif event.kind == "error":
                     self._set_building(False)
+                    if not self._details_visible:
+                        self._toggle_details()
                     self._append_log(event.message, "error")
                     self.status.set("Build failed. Check the details below and try again.")
                     self.status_label.configure(foreground="#B42318")

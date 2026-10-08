@@ -30,6 +30,9 @@ falco-editor = "editor.__main__:main"
 # The launcher is now a Rust crate (launcher-rs/), not a Python package.
 packages = ["editor", "shared"]
 
+[tool.setuptools.package-data]
+editor = ["assets/*.png", "assets/*.svg", "assets/*.ico", "assets/*.icns"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

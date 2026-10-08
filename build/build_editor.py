@@ -96,6 +96,8 @@ def pyinstaller_command(
 ) -> list[str]:
     entry = _REPO_ROOT / "editor" / "__main__.py"
     sep = ";" if sys.platform == "win32" else ":"
+    assets = _REPO_ROOT / "editor" / "assets"
+    icon_extension = {"darwin": "icns", "win32": "ico"}.get(sys.platform, "png")
     cmd = [
         sys.executable,
         "-m",
@@ -120,6 +122,10 @@ def pyinstaller_command(
         # Bundle every available per-OS launcher stub under ``stubs/``.
         "--add-data",
         f"{stubs_dir}{sep}stubs",
+        "--add-data",
+        f"{assets}{sep}editor/assets",
+        "--icon",
+        str(assets / f"falco.{icon_extension}"),
     ]
 
     # Hide the console window behind the GUI on Windows, and inside a

@@ -8,6 +8,7 @@ from editor import app, builder
 
 @pytest.fixture
 def window(monkeypatch):
+    monkeypatch.setattr(app, "discover_stubs", lambda: {})
     monkeypatch.setattr(builder, "discover_stubs", lambda: {})
     try:
         probe = tk.Tk()
@@ -88,3 +89,52 @@ def test_thread_start_failure_restores_build_controls(window, tmp_path, monkeypa
     assert not window._building
     assert "disabled" not in window.build_button.state()
     assert messages and "worker" in messages[-1]
+
+
+def test_key_controls_only_appear_for_key_authentication(window):
+    window.update_idletasks()
+    assert not window.key_row.winfo_manager()
+    assert "disabled" in window.key_entry.state()
+    window.var_auth.set("private_key")
+    window._auth_changed()
+    assert window.key_row.winfo_manager() == "grid"
+    assert "disabled" not in window.key_entry.state()
+    window._set_building(True)
+    assert "disabled" in window.key_entry.state()
+    window._set_building(False)
+    assert "disabled" not in window.key_entry.state()
+    window.var_auth.set("password")
+    window._auth_changed()
+    assert not window.key_row.winfo_manager()
+
+
+def test_details_are_collapsed_and_can_be_toggled(window):
+    assert not window._details_visible
+    assert not window.log.frame.winfo_manager()
+    window._toggle_details()
+    assert window._details_visible
+    assert window.log.frame.winfo_manager() == "grid"
+    window._toggle_details()
+    assert not window.log.frame.winfo_manager()
+
+
+def test_build_failure_reveals_details(window, monkeypatch):
+    from editor.build_jobs import BuildEvent
+    monkeypatch.setattr(app.messagebox, "showerror", lambda *args, **kwargs: None)
+    window._events.put(BuildEvent(kind="error", message="Missing launcher stub"))
+    window._drain_events()
+    assert window._details_visible
+    assert "Missing launcher stub" in window.log.get("1.0", "end")
+
+
+def test_progress_only_visible_during_build(window):
+    assert not window.progress.winfo_manager()
+    window._set_building(True)
+    assert window.progress.winfo_manager() == "grid"
+    window._set_building(False)
+    assert not window.progress.winfo_manager()
+
+
+def test_editor_loads_its_icon(window):
+    assert window._icon.width() == 64
+    assert window._icon.height() == 64

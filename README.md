@@ -1,4 +1,10 @@
-# Falco
+<p align="center">
+  <img src="editor/assets/falco.png" alt="Falco falcon icon" width="128" height="128">
+</p>
+
+<h1 align="center">Falco</h1>
+
+[![Latest release](https://img.shields.io/github/v/release/qarasky/falco.svg?sort=date&style=flat-square&color=52634f&cacheSeconds=300)](https://github.com/qarasky/falco/releases/latest) ![Platforms: macOS, Windows, Linux](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-52634f?style=flat-square) ![License: MIT](https://img.shields.io/badge/license-MIT-52634f?style=flat-square)
 
 **One launcher per server. Safe to commit in password mode. Works for you and your AI agent.**
 
@@ -16,7 +22,9 @@ terminal launching, after first-run setup.
 [Download the Editor](https://github.com/qarasky/falco/releases) ·
 [Quick start](#quickstart) · [What's safe to commit](#whats-safe-to-commit)
 
-![Workflow illustration: configure a server, share a launcher and guide, complete private credential setup, then run SSH commands and transfers](docs/images/falco-workflow.svg)
+<p align="center">
+  <img src="docs/images/falco-editor-macos.png" alt="Falco Editor on macOS with example SSH connection and launcher output settings" width="660">
+</p>
 
 ## Why
 
@@ -77,7 +85,7 @@ encrypted-key launchers**, which embed a private key.
 Enter the host, port and SSH username. **Password is the default**; no password
 is entered in the Editor or embedded in the launcher.
 
-Check **Requires Tailscale / WireGuard / VPN** when the server is on a private
+Check **Requires VPN** when the server is on a private
 network. Falco adds a reminder to the generated agent instructions and connection
 errors. Choose this computer or all available bundled platforms, an output name,
 and an output folder. The editor confirms replacements and produces launchers
@@ -230,6 +238,10 @@ cargo clippy --locked --manifest-path launcher-rs/Cargo.toml --all-targets -- -D
 `editor/` holds the Tk interface and assembly logic; `shared/` validates embedded
 configuration; `launcher-rs/` implements SSH/SFTP, host trust, credentials and
 structured diagnostics.
+
+The original app icon lives in `editor/assets/falco.svg`. After editing its
+polygon shapes, run `python build/generate_icon.py` to regenerate the PNG,
+Windows ICO and macOS ICNS assets (requires Pillow from the build extras).
 
 ## License
 
