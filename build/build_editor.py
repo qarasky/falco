@@ -6,6 +6,10 @@ Used by the release workflow to produce one downloadable binary per OS:
 * macOS    -> falco-editor       (single binary; launches the Tk window)
 * Linux    -> falco-editor       (single binary; needs a display + Tk at runtime)
 
+Pass ``--app`` on macOS to also promote PyInstaller's native
+``dist/falco-editor.app`` to a double-clickable ``dist/Falco Editor.app``
+(no Terminal window, ad-hoc re-signed after rename).
+
 Note: launchers are no longer compiled per build. The editor ships prebuilt Rust
 ``falco-stub`` binaries (bundled here via ``--add-data`` under ``stubs/``) and
 produces a launcher by copying a stub and appending the non-secret config. This
@@ -88,7 +92,7 @@ def stage_stubs(staging_root: Path) -> Path:
 
 
 def pyinstaller_command(
-    *, name: str, dist_dir: Path, work_dir: Path, stubs_dir: Path
+    *, name: str, dist_dir: Path, work_dir: Path, stubs_dir: Path, windowed: bool
 ) -> list[str]:
     entry = _REPO_ROOT / "editor" / "__main__.py"
     sep = ";" if sys.platform == "win32" else ":"
@@ -118,17 +122,70 @@ def pyinstaller_command(
         f"{stubs_dir}{sep}stubs",
     ]
 
-    # Hide the console window behind the GUI on Windows.
-    if sys.platform == "win32":
+    # Hide the console window behind the GUI on Windows, and inside a
+    # macOS .app bundle (a console build would spawn Terminal on double-click).
+    if windowed or sys.platform == "win32":
         cmd.append("--windowed")
     cmd.append(str(entry))
     return cmd
+
+
+def promote_macos_app_bundle(
+    *, name: str, dist_dir: Path, app_name: str, bundle_id: str
+) -> Path:
+    """Promote PyInstaller's native ``<name>.app`` to ``<app-name>.app``.
+
+    With ``--onefile --windowed`` on macOS, PyInstaller already emits both a
+    Unix executable (``dist/<name>``) and a signed ``dist/<name>.app`` bundle.
+    This renames the bundle to the user-facing app name and patches its
+    ``Info.plist`` (display name + identifier), instead of hand-rolling a
+    second bundle around the Unix binary.
+    """
+    import plistlib
+
+    src = dist_dir / f"{name}.app"
+    if not src.is_dir():
+        raise SystemExit(
+            f"expected macOS app bundle not found at {src}. "
+            "PyInstaller did not emit a .app (was --windowed used on macOS?)."
+        )
+    dst = dist_dir / f"{app_name}.app"
+    if src.resolve() != dst.resolve():
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.move(str(src), str(dst))
+    info_path = dst / "Contents" / "Info.plist"
+    with info_path.open("rb") as stream:
+        info = plistlib.load(stream)
+    info["CFBundleName"] = app_name
+    info["CFBundleDisplayName"] = app_name
+    info["CFBundleIdentifier"] = bundle_id
+    with info_path.open("wb") as stream:
+        plistlib.dump(info, stream)
+    # Moving invalidates the ad-hoc signature; re-sign so Gatekeeper accepts
+    # the bundle for local launch (still unsigned for distribution).
+    subprocess.run(
+        ["codesign", "--force", "--deep", "--sign", "-", str(dst)],
+        check=False,
+    )
+    return dst
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the standalone Falco Editor.")
     parser.add_argument("--name", default="falco-editor", help="Output name")
     parser.add_argument("--out-dir", default="dist", help="Output directory")
+    parser.add_argument(
+        "--app",
+        action="store_true",
+        help="On macOS, also wrap the binary in a double-clickable '<app-name>.app' bundle.",
+    )
+    parser.add_argument(
+        "--app-name", default="Falco Editor", help="Bundle name for --app"
+    )
+    parser.add_argument(
+        "--bundle-id", default="com.falco.editor", help="CFBundleIdentifier for --app"
+    )
     args = parser.parse_args(argv)
 
     dist_dir = Path(args.out_dir).resolve()
@@ -138,8 +195,17 @@ def main(argv: list[str] | None = None) -> int:
 
     stubs_dir = stage_stubs(work_dir)
 
+    want_app = bool(args.app)
+    if want_app and sys.platform != "darwin":
+        print("--app is only supported on macOS", file=sys.stderr)
+        return 1
+
     cmd = pyinstaller_command(
-        name=args.name, dist_dir=dist_dir, work_dir=work_dir, stubs_dir=stubs_dir
+        name=args.name,
+        dist_dir=dist_dir,
+        work_dir=work_dir,
+        stubs_dir=stubs_dir,
+        windowed=want_app,
     )
     print("$", " ".join(cmd), flush=True)
     proc = subprocess.run(cmd, cwd=_REPO_ROOT)
@@ -152,6 +218,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"expected editor binary not found at {exe}", file=sys.stderr)
         return 1
     print(f"Built {exe}")
+    if want_app:
+        app_dir = promote_macos_app_bundle(
+            name=args.name,
+            dist_dir=dist_dir,
+            app_name=args.app_name,
+            bundle_id=args.bundle_id,
+        )
+        print(f"Built {app_dir}")
+        print(f'Launch with: open "{app_dir}"')
     return 0
 
 

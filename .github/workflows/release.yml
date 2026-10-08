@@ -94,7 +94,14 @@ jobs:
           pip install -e ".[build]"
 
       - name: Build Falco Editor
-        run: python build/build_editor.py --name falco-editor --out-dir dist
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            python build/build_editor.py --name falco-editor --out-dir dist --app
+            ditto -c -k --sequesterRsrc "dist/Falco Editor.app" "Falco-Editor-mac.zip"
+          else
+            python build/build_editor.py --name falco-editor --out-dir dist
+          fi
 
       - name: Rename artifact for this OS
         shell: bash
@@ -105,6 +112,14 @@ jobs:
         with:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+      - name: Upload macOS app bundle
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Falco-Editor-mac.zip
+          path: Falco-Editor-mac.zip
           if-no-files-found: error
 
   release:
@@ -118,6 +133,13 @@ jobs:
           pattern: falco-editor-*
           merge-multiple: true
 
+      - name: Download macOS app bundle
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: Falco-Editor-*
+          merge-multiple: true
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -128,7 +150,8 @@ jobs:
 
             Assets:
             - `falco-editor-windows.exe` — Windows
-            - `falco-editor-macos` — macOS
+            - `falco-editor-macos` — macOS (single binary)
+            - `Falco-Editor-mac.zip` — macOS app bundle (double-clickable, zipped `.app`)
             - `falco-editor-linux` — Linux
 
             Each editor bundles prebuilt Rust launcher stubs for all three
