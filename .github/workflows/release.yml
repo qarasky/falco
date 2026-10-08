@@ -104,10 +104,12 @@ jobs:
           fi
 
       - name: Rename artifact for this OS
+        if: runner.os != 'macOS'
         shell: bash
         run: cp "${{ matrix.artifact }}" "${{ matrix.asset }}"
 
       - name: Upload build artifact
+        if: runner.os != 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
@@ -150,8 +152,7 @@ jobs:
 
             Assets:
             - `falco-editor-windows.exe` — Windows
-            - `falco-editor-macos` — macOS (single binary)
-            - `Falco-Editor-mac.zip` — macOS app bundle (double-clickable, zipped `.app`)
+            - `Falco-Editor-mac.zip` — macOS (unzip, then open `Falco Editor.app`)
             - `falco-editor-linux` — Linux
 
             Each editor bundles prebuilt Rust launcher stubs for all three

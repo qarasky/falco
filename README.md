@@ -28,6 +28,8 @@ Create a launcher, save your password once, and let you or your agent use it.
 ## Quickstart
 
 1. **Download the [Editor](https://github.com/qarasky/falco/releases)** for your OS.
+   On macOS, unzip `Falco-Editor-mac.zip` and double-click `Falco Editor.app`
+   (move it to Applications if you like).
 2. **Create a launcher:** enter the host, port and username, leave **Password**
    selected, choose an output folder, and click **Build launcher**.
 3. **Run the launcher once in a terminal** and enter your password privately.
