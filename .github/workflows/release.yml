@@ -98,7 +98,11 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
             python build/build_editor.py --name falco-editor --out-dir dist --app
-            ditto -c -k --sequesterRsrc "dist/Falco Editor.app" "Falco-Editor-mac.zip"
+            rm -rf dmg-stage "Falco-Editor-mac.dmg"
+            mkdir -p dmg-stage
+            cp -R "dist/Falco Editor.app" dmg-stage/
+            ln -s /Applications dmg-stage/Applications
+            hdiutil create -volname "Falco Editor" -srcfolder dmg-stage -ov -format UDZO "Falco-Editor-mac.dmg"
           else
             python build/build_editor.py --name falco-editor --out-dir dist
           fi
@@ -120,8 +124,8 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: Falco-Editor-mac.zip
-          path: Falco-Editor-mac.zip
+          name: Falco-Editor-mac.dmg
+          path: Falco-Editor-mac.dmg
           if-no-files-found: error
 
   release:
@@ -152,7 +156,7 @@ jobs:
 
             Assets:
             - `falco-editor-windows.exe` — Windows
-            - `Falco-Editor-mac.zip` — macOS (unzip, then open `Falco Editor.app`)
+            - `Falco-Editor-mac.dmg` — macOS (double-click to open, drag `Falco Editor.app` to Applications)
             - `falco-editor-linux` — Linux
 
             Each editor bundles prebuilt Rust launcher stubs for all three
