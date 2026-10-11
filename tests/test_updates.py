@@ -80,10 +80,20 @@ def test_network_failures_are_useful_errors(monkeypatch, error):
         updates.check_latest("macos")
 
 
-@pytest.mark.parametrize("raw", [b"not json", b"x" * (updates.MAX_RESPONSE_BYTES + 1)])
-def test_bad_response_is_rejected(monkeypatch, raw):
+def test_bad_response_is_rejected(monkeypatch):
     from io import BytesIO
-    monkeypatch.setattr(updates, "urlopen", lambda *args, **kwargs: BytesIO(raw))
+    monkeypatch.setattr(updates, "urlopen", lambda *args, **kwargs: BytesIO(b"not json"))
+    with pytest.raises(updates.UpdateError):
+        updates.check_latest("macos")
+
+
+def test_oversized_response_is_rejected(monkeypatch):
+    # Built inside the test: a megabyte-sized parametrized value would become
+    # part of the test ID, and pytest exports that ID in PYTEST_CURRENT_TEST,
+    # which hangs Windows runners on oversized environment variables.
+    oversized = b"x" * (updates.MAX_RESPONSE_BYTES + 1)
+    from io import BytesIO
+    monkeypatch.setattr(updates, "urlopen", lambda *args, **kwargs: BytesIO(oversized))
     with pytest.raises(updates.UpdateError):
         updates.check_latest("macos")
 
