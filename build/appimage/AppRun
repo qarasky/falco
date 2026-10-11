@@ -1,0 +1,4 @@
+#!/bin/sh
+# AppImage entry point: run the bundled editor with all arguments, so both the
+# GUI (no arguments) and the headless CLI keep working from the AppImage.
+exec "$APPDIR/falco-editor" "$@"

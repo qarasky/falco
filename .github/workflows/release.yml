@@ -112,6 +112,25 @@ jobs:
         shell: bash
         run: cp "${{ matrix.artifact }}" "${{ matrix.asset }}"
 
+      - name: Build AppImage
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y file
+          curl -fsSL -o appimagetool \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          python build/build_appimage.py --binary dist/falco-editor \
+            --out falco-editor-linux.AppImage --tool ./appimagetool
+
+      - name: Upload AppImage
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: falco-editor-linux.AppImage
+          path: falco-editor-linux.AppImage
+          if-no-files-found: error
+
       - name: Upload build artifact
         if: runner.os != 'macOS'
         uses: actions/upload-artifact@v4
@@ -158,6 +177,7 @@ jobs:
             - `falco-editor-windows.exe` — Windows
             - `Falco-Editor-mac.dmg` — macOS (double-click to open, drag `Falco Editor.app` to Applications)
             - `falco-editor-linux` — Linux
+            - `falco-editor-linux.AppImage` — Linux, with the Falco icon and desktop entry
 
             Each editor bundles prebuilt Rust launcher stubs for all three
             platforms, so a single editor can emit Windows/macOS/Linux launchers

@@ -37,7 +37,9 @@ Create a launcher, save your password once, and let you or your agent use it.
 
 1. **Download the [Editor](https://github.com/qarasky/falco/releases)** for your OS.
    On macOS, open `Falco-Editor-mac.dmg` and drag `Falco Editor.app`
-   to Applications (or double-click it to run).
+   to Applications (or double-click it to run). On Linux,
+   `falco-editor-linux.AppImage` carries the Falco icon and desktop entry; the
+   plain `falco-editor-linux` binary works the same.
 2. **Create a launcher:** enter the host, port and username, leave **Password**
    selected, choose an output folder, and click **Build launcher**. The same
    editor executable can also build headlessly — see
@@ -274,7 +276,8 @@ cargo clippy --locked --manifest-path launcher-rs/Cargo.toml --all-targets -- -D
 
 `editor/` holds the Tk interface and assembly logic; `shared/` validates embedded
 configuration; `launcher-rs/` implements SSH/SFTP, host trust, credentials and
-structured diagnostics.
+structured diagnostics. `build/build_appimage.py` wraps the Linux editor into
+the AppImage published with each release.
 
 The original app icon lives in `editor/assets/falco.svg`. After editing its
 polygon shapes, run `python build/generate_icon.py` to regenerate the PNG,

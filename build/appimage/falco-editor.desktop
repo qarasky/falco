@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Falco Editor
+Comment=Create portable SSH launchers
+Exec=falco-editor
+Icon=falco-editor
+Terminal=false
+Categories=Development;
