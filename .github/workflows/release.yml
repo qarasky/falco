@@ -162,5 +162,8 @@ jobs:
             Each editor bundles prebuilt Rust launcher stubs for all three
             platforms, so a single editor can emit Windows/macOS/Linux launchers
             with no toolchain — fully offline (see the README).
+
+            Every editor is also a headless CLI: pass build arguments and no
+            window opens (`falco-editor --help`).
           files: artifacts/*
           fail_on_unmatched_files: true

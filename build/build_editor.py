@@ -2,7 +2,8 @@
 
 Used by the release workflow to produce one downloadable binary per OS:
 
-* Windows  -> falco-editor.exe   (windowed: no console box behind the GUI)
+* Windows  -> falco-editor.exe   (console-capable: hidden when double-clicked,
+                                  streaming when run from a terminal)
 * macOS    -> falco-editor       (single binary; launches the Tk window)
 * Linux    -> falco-editor       (single binary; needs a display + Tk at runtime)
 
@@ -138,10 +139,15 @@ def pyinstaller_command(
         metadata.write_text(json.dumps({"build_number": build_number}), encoding="utf-8")
         cmd.extend(["--add-data", f"{metadata}{sep}editor"])
 
-    # Hide the console window behind the GUI on Windows, and inside a
-    # macOS .app bundle (a console build would spawn Terminal on double-click).
-    if windowed or sys.platform == "win32":
+    # macOS .app bundles are built windowed (a console build would spawn
+    # Terminal on double-click). On Windows the editor keeps the console
+    # subsystem so CLI builds stream output and real exit codes to the invoking
+    # terminal; the bootloader hides the console only when the editor owns it
+    # (double-click), leaving just the GUI.
+    if windowed:
         cmd.append("--windowed")
+    if sys.platform == "win32":
+        cmd.extend(["--hide-console", "hide-early"])
     cmd.append(str(entry))
     return cmd
 

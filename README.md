@@ -39,7 +39,9 @@ Create a launcher, save your password once, and let you or your agent use it.
    On macOS, open `Falco-Editor-mac.dmg` and drag `Falco Editor.app`
    to Applications (or double-click it to run).
 2. **Create a launcher:** enter the host, port and username, leave **Password**
-   selected, choose an output folder, and click **Build launcher**.
+   selected, choose an output folder, and click **Build launcher**. The same
+   editor executable can also build headlessly — see
+   [Build from a terminal](#build-from-a-terminal).
 3. **Run the launcher once in a terminal** and enter your password privately.
    After successful authentication, it is saved in your OS credential store.
 
@@ -105,6 +107,29 @@ plus `how-to-use.md` with their actual filenames.
 Builds require no compiler or network connection: the editor stamps configuration
 into prebuilt Rust launcher files. New editors reject outdated launcher files
 rather than silently generating an executable that ignores key/VPN settings.
+
+## Build from a terminal
+
+Every editor download is also a headless builder: pass the settings and no
+window opens. The launchers and `how-to-use.md` are identical to a windowed
+build, so scripts and agents can use the editor executable you already have.
+
+```sh
+# Windows and Linux
+falco-editor --name server-client-X --host 100.64.0.12 --user deploy \
+  --output server-client-X --out-dir dist --requires-vpn
+
+# macOS — the executable lives inside the app bundle
+"/Applications/Falco Editor.app/Contents/MacOS/falco-editor" \
+  --name server-client-X --host 100.64.0.12 --user deploy \
+  --output server-client-X --out-dir dist --requires-vpn
+```
+
+Add `--all-platforms` to build every bundled platform and `--private-key` to
+embed an encrypted key; `--help` lists all options and `--version` prints this
+editor's build number. Like any CLI it replaces existing output files without
+asking (the window asks first). Passwords and passphrases are never accepted as
+arguments: complete first-run credential setup in a terminal after the build.
 
 ## First use — human setup
 
@@ -225,7 +250,8 @@ A local build bundles the current OS's launcher. Release builds bundle Windows,
 macOS and Linux launchers into every editor. Old generated launchers must be
 rebuilt to receive host verification, key authentication and the new diagnostics.
 
-The headless builder also supports the new settings:
+A source checkout gets the same headless build (a packaged editor runs it
+directly, no Python required):
 
 ```sh
 python build/build_launcher.py --name server-client-X --host 100.64.0.12 \

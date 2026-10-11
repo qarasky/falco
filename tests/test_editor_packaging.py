@@ -35,3 +35,33 @@ def test_unversioned_local_build_does_not_embed_a_release_number(tmp_path):
         stubs_dir=tmp_path / "stubs", windowed=True,
     )
     assert not any("build_info.json" in argument for argument in command)
+
+
+def test_windows_editor_keeps_console_for_cli_and_hides_it_when_owned(monkeypatch, tmp_path):
+    monkeypatch.setattr(build_editor.sys, "platform", "win32")
+    command = build_editor.pyinstaller_command(
+        name="falco-editor", dist_dir=tmp_path, work_dir=tmp_path,
+        stubs_dir=tmp_path / "stubs", windowed=False,
+    )
+    assert "--windowed" not in command
+    assert command[command.index("--hide-console") + 1] == "hide-early"
+
+
+def test_macos_app_bundle_is_windowed_without_windows_console_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(build_editor.sys, "platform", "darwin")
+    command = build_editor.pyinstaller_command(
+        name="falco-editor", dist_dir=tmp_path, work_dir=tmp_path,
+        stubs_dir=tmp_path / "stubs", windowed=True,
+    )
+    assert "--windowed" in command
+    assert "--hide-console" not in command
+
+
+def test_linux_editor_has_no_platform_window_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(build_editor.sys, "platform", "linux")
+    command = build_editor.pyinstaller_command(
+        name="falco-editor", dist_dir=tmp_path, work_dir=tmp_path,
+        stubs_dir=tmp_path / "stubs", windowed=False,
+    )
+    assert "--windowed" not in command
+    assert "--hide-console" not in command
