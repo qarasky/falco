@@ -28,6 +28,7 @@ Stub sources, in priority order:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -92,7 +93,8 @@ def stage_stubs(staging_root: Path) -> Path:
 
 
 def pyinstaller_command(
-    *, name: str, dist_dir: Path, work_dir: Path, stubs_dir: Path, windowed: bool
+    *, name: str, dist_dir: Path, work_dir: Path, stubs_dir: Path, windowed: bool,
+    build_number: int | None = None,
 ) -> list[str]:
     entry = _REPO_ROOT / "editor" / "__main__.py"
     sep = ";" if sys.platform == "win32" else ":"
@@ -127,6 +129,14 @@ def pyinstaller_command(
         "--icon",
         str(assets / f"falco.{icon_extension}"),
     ]
+
+    if build_number is not None:
+        if type(build_number) is not int or build_number < 1:
+            raise ValueError("Editor build number must be a positive integer.")
+        work_dir.mkdir(parents=True, exist_ok=True)
+        metadata = work_dir / "build_info.json"
+        metadata.write_text(json.dumps({"build_number": build_number}), encoding="utf-8")
+        cmd.extend(["--add-data", f"{metadata}{sep}editor"])
 
     # Hide the console window behind the GUI on Windows, and inside a
     # macOS .app bundle (a console build would spawn Terminal on double-click).
@@ -181,6 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the standalone Falco Editor.")
     parser.add_argument("--name", default="falco-editor", help="Output name")
     parser.add_argument("--out-dir", default="dist", help="Output directory")
+    parser.add_argument("--build-number", type=int, help="Release build number for editor update checks")
     parser.add_argument(
         "--app",
         action="store_true",
@@ -193,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
         "--bundle-id", default="com.falco.editor", help="CFBundleIdentifier for --app"
     )
     args = parser.parse_args(argv)
+    if args.build_number is not None and args.build_number < 1:
+        parser.error("--build-number must be a positive integer")
 
     dist_dir = Path(args.out_dir).resolve()
     work_dir = dist_dir / ".falco-editor-build"
@@ -212,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         work_dir=work_dir,
         stubs_dir=stubs_dir,
         windowed=want_app,
+        build_number=args.build_number,
     )
     print("$", " ".join(cmd), flush=True)
     proc = subprocess.run(cmd, cwd=_REPO_ROOT)

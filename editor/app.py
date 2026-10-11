@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import webbrowser
 from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
@@ -15,6 +16,7 @@ from tkinter.scrolledtext import ScrolledText
 
 from editor.builder import TARGETS, _current_os_key, discover_stubs, validate_output_name
 from editor.build_jobs import BuildEvent, run_build
+from editor.updates import EditorRelease, UpdateError, check_latest, installed_build
 from shared.config import DEFAULT_SSH_PORT, LauncherConfig
 from shared.errors import FalcoError
 from shared.ssh_keys import MAX_KEY_BYTES
@@ -34,6 +36,9 @@ class FalcoEditor(tk.Tk):
         self._closing = False
         self._building = False
         self._events: Queue[BuildEvent] = Queue()
+        self._update_events: Queue[EditorRelease | str] = Queue()
+        self._checking_updates = False
+        self._installed_build = installed_build()
         self._controls: list[ttk.Widget] = []
         self._last_output_dir: Path | None = None
         self._stubs = discover_stubs()
@@ -42,8 +47,67 @@ class FalcoEditor(tk.Tk):
         self._icon = tk.PhotoImage(file=str(Path(__file__).parent / "assets" / "falco-64.png"))
         self.iconphoto(True, self._icon)
         self._build_form()
+        self._build_menu()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._poll_id = self.after(80, self._poll_events)
+
+    def _build_menu(self) -> None:
+        menu = tk.Menu(self)
+        self._help_menu = tk.Menu(menu, tearoff=False)
+        self._help_menu.add_command(label="Check for updates…", command=self._check_updates)
+        menu.add_cascade(label="Help", menu=self._help_menu)
+        self.configure(menu=menu)
+
+    def _check_updates(self) -> None:
+        if self._checking_updates or self._closing:
+            return
+        self._checking_updates = True
+        self._help_menu.entryconfigure(0, label="Checking for updates…", state="disabled")
+
+        def worker() -> None:
+            try:
+                self._update_events.put(check_latest(self._current_os))
+            except UpdateError as exc:
+                self._update_events.put(str(exc))
+
+        try:
+            threading.Thread(target=worker, daemon=True).start()
+        except RuntimeError:
+            self._update_events.put("Could not start the update check. Try again later.")
+
+    def _drain_update_events(self) -> None:
+        if self._closing:
+            return
+        try:
+            result = self._update_events.get_nowait()
+        except Empty:
+            return
+        self._checking_updates = False
+        self._help_menu.entryconfigure(0, label="Check for updates…", state="normal")
+        if isinstance(result, str):
+            messagebox.showerror("Update check failed", result, parent=self)
+            return
+        if self._installed_build is not None and not result.is_newer_than(self._installed_build):
+            messagebox.showinfo("No update available", f"Your editor (build {self._installed_build}) is up to date.", parent=self)
+            return
+        instructions = {
+            "macos": "Open the downloaded DMG, quit Falco Editor, and drag the new app into Applications to replace it.",
+            "windows": "Quit Falco Editor and replace your old editor EXE with the downloaded file.",
+            "linux": "Quit Falco Editor, replace the old editor with the downloaded file, and make it executable (chmod +x).",
+        }[self._current_os]
+        current = f"You have build {self._installed_build}." if self._installed_build is not None else "This is an unversioned development build; its update status cannot be compared."
+        if messagebox.askyesno(
+            "Editor update" if self._installed_build is None else "Editor update available",
+            f"The latest editor is build {result.build_number}. {current}\n\n{instructions}\n\n"
+            "Existing generated launchers are not changed.\n\nDownload the editor update in your browser?",
+            parent=self,
+        ):
+            try:
+                opened = webbrowser.open(result.download_url)
+            except (OSError, webbrowser.Error):
+                opened = False
+            if not opened:
+                messagebox.showerror("Could not open browser", f"Download the editor from:\n{result.download_url}", parent=self)
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self)
@@ -303,6 +367,7 @@ class FalcoEditor(tk.Tk):
         if self._closing:
             return
         self._drain_events()
+        self._drain_update_events()
         if not self._closing:
             self._poll_id = self.after(80, self._poll_events)
 

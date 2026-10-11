@@ -80,6 +80,17 @@ through argv or environment variables. Enter them only in the private terminal
 prompt, never in agent chat. **This commit-safety claim does not apply to optional
 encrypted-key launchers**, which embed a private key.
 
+## Editor updates
+
+Use **Help → Check for updates** to check GitHub for a newer editor build.
+The check runs in the background only when requested. If an update is available,
+Falco offers the editor download for your OS and replacement instructions.
+On macOS, open the DMG, quit the editor and drag the new app into Applications.
+On Windows/Linux, quit the editor and replace its executable (on Linux, make it
+executable). Existing generated launchers and their settings are not changed.
+Source checkouts and unversioned local builds can download the latest editor,
+but cannot compare their version with the release.
+
 ## Create a launcher
 
 Enter the host, port and SSH username. **Password is the default**; no password

@@ -97,14 +97,14 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
-            python build/build_editor.py --name falco-editor --out-dir dist --app
+            python build/build_editor.py --name falco-editor --out-dir dist --app --build-number "$GITHUB_RUN_NUMBER"
             rm -rf dmg-stage "Falco-Editor-mac.dmg"
             mkdir -p dmg-stage
             cp -R "dist/Falco Editor.app" dmg-stage/
             ln -s /Applications dmg-stage/Applications
             hdiutil create -volname "Falco Editor" -srcfolder dmg-stage -ov -format UDZO "Falco-Editor-mac.dmg"
           else
-            python build/build_editor.py --name falco-editor --out-dir dist
+            python build/build_editor.py --name falco-editor --out-dir dist --build-number "$GITHUB_RUN_NUMBER"
           fi
 
       - name: Rename artifact for this OS

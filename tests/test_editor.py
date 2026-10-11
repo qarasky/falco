@@ -138,3 +138,68 @@ def test_progress_only_visible_during_build(window):
 def test_editor_loads_its_icon(window):
     assert window._icon.width() == 64
     assert window._icon.height() == 64
+
+
+def test_update_offer_opens_download_for_this_os(window, monkeypatch):
+    from editor.updates import EditorRelease
+    offers, opened = [], []
+    window._installed_build = 9
+    release = EditorRelease(21, "https://github.com/qarasky/falco/releases/download/build-21/Falco-Editor-mac.dmg")
+    monkeypatch.setattr(app.messagebox, "askyesno", lambda title, message, **kwargs: offers.append(message) or True)
+    monkeypatch.setattr(app.webbrowser, "open", lambda url: opened.append(url) or True)
+    window._update_events.put(release)
+    window._drain_update_events()
+    assert opened == [release.download_url]
+    assert "launchers are not changed" in offers[0]
+    assert "build 9" in offers[0]
+
+
+def test_no_update_when_installed_build_is_same_or_newer(window, monkeypatch):
+    from editor.updates import EditorRelease
+    messages = []
+    window._installed_build = 22
+    monkeypatch.setattr(app.messagebox, "showinfo", lambda title, message, **kwargs: messages.append(message))
+    window._update_events.put(EditorRelease(21, "https://github.com/qarasky/falco/releases/latest"))
+    window._drain_update_events()
+    assert "up to date" in messages[0]
+
+
+def test_update_error_restores_menu_without_affecting_build_status(window, monkeypatch):
+    messages = []
+    monkeypatch.setattr(app.messagebox, "showerror", lambda title, message, **kwargs: messages.append(message))
+    window._checking_updates = True
+    window._update_events.put("Offline. Try again later.")
+    window._drain_update_events()
+    assert not window._checking_updates
+    assert window._help_menu.entrycget(0, "state") == "normal"
+    assert window.status.get() == "Ready"
+    assert messages == ["Offline. Try again later."]
+
+
+def test_update_check_runs_in_worker_and_ignores_duplicate_requests(window, monkeypatch):
+    from editor.updates import EditorRelease
+    from threading import Event
+    started, finish = Event(), Event()
+    calls = []
+
+    def check(platform):
+        calls.append(platform)
+        started.set()
+        finish.wait(3)
+        return EditorRelease(21, "https://github.com/qarasky/falco/releases/latest")
+
+    monkeypatch.setattr(app, "check_latest", check)
+    window._check_updates()
+    try:
+        assert started.wait(3)
+        window._check_updates()
+        assert calls == [window._current_os]
+        assert window._help_menu.entrycget(0, "state") == "disabled"
+    finally:
+        finish.set()
+
+
+def test_close_with_queued_update_is_safe(window):
+    window._update_events.put("late result")
+    window._on_close()
+    window._drain_update_events()
